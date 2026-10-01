@@ -8,7 +8,7 @@ import {
 } from "react";
 import type { EffectDef } from "../effects/types";
 import { EFFECTS } from "../effects/registry";
-import { STAGE } from "../stage";
+import { useStage } from "../StageContext";
 import { focusCamGeom } from "../effects/hud/camGeom";
 import { outroFade, type OverlayCard } from "../overlay/types";
 import { useEnter } from "../effects/useAnimation";
@@ -45,6 +45,11 @@ interface CanvasProps {
   videoElRef?: (el: HTMLVideoElement | null) => void;
   /** 视频元数据加载后上报时长(编辑台时间轴用) */
   onVideoMeta?: (duration: number) => void;
+  /**
+   * 视频元数据加载后上报**真实像素宽高**(画布据此切换成视频自己的比例)。
+   * 拿不到(纯音频轨 / 还没解码)会收到 0,调用方应退回占位比例而不是按 0 算。
+   */
+  onVideoSize?: (w: number, h: number) => void;
   onNudge?: NudgeFn;
   onPickCard?: (id: string) => void;
 }
@@ -91,7 +96,7 @@ function CardShell({
   snapCtx?: SnapCtx;
   children: ReactNode;
 }) {
-  const { w: STAGE_W, h: STAGE_H } = STAGE;
+  const { w: STAGE_W, h: STAGE_H } = useStage();
   const scale = fxScale * (Number(params.scale) || 1);
   // 有效倍速 = 全局「动画速度」×该卡自己的「动画速度(此卡)」
   const speed = animSpeed * (Number(params.speed) || 1);
@@ -228,11 +233,12 @@ export function Canvas({
   animSpeed,
   videoElRef,
   onVideoMeta,
+  onVideoSize,
   onNudge,
   onPickCard,
 }: CanvasProps) {
   // 画布逻辑尺寸:1920×1080
-  const { w: STAGE_W, h: STAGE_H } = STAGE;
+  const { w: STAGE_W, h: STAGE_H } = useStage();
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const videoNodeRef = useRef<HTMLVideoElement | null>(null);
@@ -296,6 +302,10 @@ export function Canvas({
         style={{
           width: STAGE_W,
           height: STAGE_H,
+          /* 画布尺寸下发成 CSS 变量:视频层、章节条、运镜卡都靠 --stage-w/h 铺满。
+             hud.css 里那两个 1920/1080 只是没被接管时的兜底,这里才是真值。 */
+          ["--stage-w" as string]: `${STAGE_W}px`,
+          ["--stage-h" as string]: `${STAGE_H}px`,
           transform: `translate(-50%, -50%) scale(${scale})`,
           ["--hud-scale" as string]: fxScale,
           ...(font ? { ["--hud-font" as string]: `"${font}"` } : {}),
@@ -331,9 +341,21 @@ export function Canvas({
             loop={!overlayMode}
             muted={overlayMode ? (videoMuted ?? false) : true}
             playsInline
-            onLoadedMetadata={(e) =>
-              onVideoMeta?.((e.target as HTMLVideoElement).duration || 0)
-            }
+            onLoadedMetadata={(e) => {
+              const el = e.target as HTMLVideoElement;
+              onVideoMeta?.(el.duration || 0);
+              // 真实像素尺寸 → 画布按视频自己的比例重排。
+              // videoWidth/videoHeight 是解码后的画面尺寸(不含旋转元数据之外的处理),
+              // 9:16 / 4:3 / 1:1 / 超宽都会得到各自的比例,画布跟着变,不再裁切或留黑边。
+              // 拿不到时是 0,`stageFromVideo` 会退回占位比例,不会算出 NaN。
+              onVideoSize?.(el.videoWidth, el.videoHeight);
+            }}
+            /* 换 src / 解码器重置后元数据会重新到达,再报一次,保持画布与当前视频一致 */
+            onResize={(e) => {
+              const el = e.target as HTMLVideoElement;
+              if (el.videoWidth > 0 && el.videoHeight > 0)
+                onVideoSize?.(el.videoWidth, el.videoHeight);
+            }}
             onError={(e) => {
               const el = e.target as HTMLVideoElement;
               const err = el.error;

@@ -4,7 +4,8 @@ import "./fonts"; // 自定义字体注册:导出端也要有 @font-face,成片�
 import { EFFECTS } from "./effects/registry";
 import { FxSpeedScope } from "./effects/FxSpeedScope";
 import { outroFade, parseOverlay, type OverlayDoc } from "./overlay/types";
-import { STAGE } from "./stage";
+import { stageFromVideo, type StageSize } from "./stage";
+import { StageProvider } from "./StageContext";
 import "./effects/hud/hud.css";
 import "./App.css";
 
@@ -76,20 +77,34 @@ function renderCard(
   );
 }
 
-const stageStyle = (scale: number) => {
-  const { w, h } = STAGE;
+/** 画布尺寸由导出脚本按原视频比例下发(?w=&h=),见 stage.ts 的比例归一化 */
+const stageStyle = (size: StageSize, scale: number) => {
+  const { w, h } = size;
   return {
     position: "fixed",
     left: 0,
     top: 0,
     width: w,
     height: h,
+    /* 和预览端一致:把画布尺寸下发成 CSS 变量,卡片/章节条按它铺满 */
+    ["--stage-w" as string]: `${w}px`,
+    ["--stage-h" as string]: `${h}px`,
     ["--hud-scale" as string]: scale,
   } as React.CSSProperties;
 };
 
 /** 整条时间轴导出:虚拟时钟推进,卡片按时间窗挂载/卸载 */
-function TimelineExport({ doc, scale, speed }: { doc: OverlayDoc; scale: number; speed: number }) {
+function TimelineExport({
+  doc,
+  scale,
+  speed,
+  size,
+}: {
+  doc: OverlayDoc;
+  scale: number;
+  speed: number;
+  size: StageSize;
+}) {
   const [t, setT] = useState(-1);
 
   useEffect(() => {
@@ -152,7 +167,7 @@ function TimelineExport({ doc, scale, speed }: { doc: OverlayDoc; scale: number;
         className={`stage is-hud is-export${doc.glow ? "" : " no-glow"}`}
         data-theme={doc.theme ?? "dark"}
         style={{
-          ...stageStyle(scale),
+          ...stageStyle(size, scale),
           ...(doc.font ? { ["--hud-font" as string]: `"${doc.font}"` } : {}),
           ...inkVars(doc.inkColor),
         }}
@@ -213,5 +228,12 @@ export function ExportView() {
       return takesCam && (c.params.camSrc || doc.cam);
     })
     .map((c) => ({ kind: c.kind, start: c.start, end: c.end }));
-  return <TimelineExport doc={doc} scale={Number(q.get("fx") ?? 1)} speed={speed} />;
+  // 画布尺寸:导出脚本按原视频比例下发(?w=&h=),缺失时 stageFromVideo 退回占位 16:9。
+  // 传入的已经是归一化后的画布尺寸,再走一次 stageFromVideo 是幂等的(长边本来就是 1920)。
+  const size = stageFromVideo(Number(q.get("w") ?? 0), Number(q.get("h") ?? 0));
+  return (
+    <StageProvider size={size}>
+      <TimelineExport doc={doc} scale={Number(q.get("fx") ?? 1)} speed={speed} size={size} />
+    </StageProvider>
+  );
 }

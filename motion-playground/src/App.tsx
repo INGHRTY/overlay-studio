@@ -15,6 +15,8 @@ import { parseOverlay, type OverlayCard, type OverlayDoc } from "./overlay/types
 import { parseSrt, type SrtLine } from "./overlay/srt";
 import { lintOverlay, mergeLintConfig, type LintConfig, type LintIssue } from "./overlay/lint";
 import { uploadErrText } from "./uploadErr";
+import { DEFAULT_STAGE, stageFromVideo, sameStage, type StageSize } from "./stage";
+import { StageProvider } from "./StageContext";
 import lintDefaults from "../lint-rules.default.json";
 
 // 个人阈值(lint-rules.local.json,gitignore):存在就叠加覆盖公共默认
@@ -57,6 +59,9 @@ export default function App() {
   // 只有真去请求后台才露馅 —— 用户完全没办法自己看出来。所以定时探一下,明着说。
   const [online, setOnline] = useState(true);
   const [videoDur, setVideoDur] = useState(0);
+  // 画布尺寸:跟随导入视频的**真实比例**(9:16 / 4:3 / 1:1 / 超宽都装得下)。
+  // 元数据到达前是 DEFAULT_STAGE(16:9)占位,到达后切到视频自己的比例。
+  const [stage, setStage] = useState<StageSize>(DEFAULT_STAGE);
   // 编辑台的视频声音(效果库永远静音)
   const [muted, setMuted] = useState(false);
   // 视频画面缩放:视频自带黑边/比例不满时,放大充满画布(1 = 原始)
@@ -919,6 +924,9 @@ export default function App() {
         speed: animSpeed,
         fps: EXPORT_FPS,
         duration: Math.max(...overlay.cards.map((c) => c.end)) + 0.5,
+        // 画布尺寸:直接沿用当前预览的比例(它跟着导入视频的真实比例)。
+        // 导出的透明层必须和原片同比例,拖进剪映才能逐帧对上。
+        stage,
       };
       const res = await fetch("/api/export", {
         method: "POST",
@@ -974,6 +982,16 @@ export default function App() {
     }
   };
 
+  /**
+   * 视频真实像素尺寸 → 画布比例。
+   * 同一个比例不重复 setState:否则每次元数据重发都会重排一次并再跑一遍过渡动画。
+   * 拿不到尺寸(纯音频轨等)时 stageFromVideo 会退回 16:9 占位。
+   */
+  const handleVideoSize = (vw: number, vh: number) => {
+    const next = stageFromVideo(vw, vh);
+    setStage((prev) => (sameStage(prev, next) ? prev : next));
+  };
+
   const handleVideo = async (file: File | null) => {
     if (videoBusy) return;
     camClearedRef.current = false; // 换了视频,之前那次「清除」不作数
@@ -989,6 +1007,7 @@ export default function App() {
     if (!file) {
       setVideoDur(0);
       setPlaying(false);
+      setStage(DEFAULT_STAGE); // 视频清掉了,画布回到占位比例
       return;
     }
     setPlaying(false);
@@ -1055,6 +1074,7 @@ export default function App() {
   const panelOnChange = inEdit && selCard ? handleCardParamChange : handleParamChange;
 
   return (
+    <StageProvider size={stage}>
     <div
       className="app"
       /* 拖文件进窗口即导入:视频 → 垫底预览,JSON → 时间轴 */
@@ -1211,6 +1231,7 @@ export default function App() {
           animSpeed={animSpeed}
           videoElRef={(el) => (videoRef.current = el)}
           onVideoMeta={setVideoDur}
+          onVideoSize={handleVideoSize}
           onNudge={handleNudge}
           onPickCard={setSelCardId}
         />
@@ -1259,6 +1280,7 @@ export default function App() {
         />
       )}
     </div>
+    </StageProvider>
   );
 }
 

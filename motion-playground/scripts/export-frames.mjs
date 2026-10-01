@@ -29,9 +29,16 @@ const {
   duration = 6,
   base = "http://localhost:5177",
   keepFrames = false, // true = 保留 PNG 中间目录
+  // 画布尺寸由前端下发:就是当前预览用的那份(已按导入视频的真实比例归一化)。
+  // 导出必须与预览同比例,否则透明层盖到原片上会对不上边。
+  stage: jobStage,
 } = job;
 
-const STAGE = { w: 1920, h: 1080 };
+/** 画布尺寸:默认 16:9,让单独跑本脚本调试时也能出片,不会因为缺字段崩掉 */
+const STAGE = {
+  w: Number.isFinite(jobStage?.w) && jobStage.w > 0 ? Math.round(jobStage.w) : 1920,
+  h: Number.isFinite(jobStage?.h) && jobStage.h > 0 ? Math.round(jobStage.h) : 1080,
+};
 
 // NTSC 29.97 的真身是 30000/1001(=29.970029970…),写成小数会有微小误差:
 // 帧号/时钟用精确值算,传给 ffmpeg 的帧率用分数字符串,避免它按 2997/100 编码
@@ -195,7 +202,7 @@ const vidFrames = extractVideoFrames(videoUses);
 
 // 整份编排不放 URL:中文转码后网址会超过服务器 16KB 上限(HTTP 431),
 // 改在 page.goto 前用 evaluateOnNewDocument 注入 window.__EXPORT_DOC
-const url = `${base}/?export=1&fx=${scale}&spd=${speed}`;
+const url = `${base}/?export=1&fx=${scale}&spd=${speed}&w=${STAGE.w}&h=${STAGE.h}`;
 
 // 等「虚拟时钟推进完毕」这个事件,**带超时**。以前是裸等:渲染器假死(没崩、只是不再响应)
 // 事件永远不来,这个进程就永远挂着 —— 服务端的导出锁也就永远解不开,用户之后每次点导出
