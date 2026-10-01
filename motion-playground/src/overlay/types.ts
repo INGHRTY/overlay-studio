@@ -49,6 +49,17 @@ export interface OverlayDoc {
   /** 全局文字色:盖住主题自带的 --hud-ink(主文字),次要文字自动按同色降透明度。
    *  空 = 用主题默认值。这是「盖一层」,不改各卡参数,随时清空即恢复。 */
   inkColor?: string;
+  /**
+   * 全局品牌强调色(如 #e40c84):改掉 --hud-blue 的取值,于是所有默认强调色
+   * (绝大多数卡的 accent 默认值)都渲染成这个颜色 —— 一期视频一次设定,全片统一。
+   *
+   * **只盖 blue(默认色),不动 alert/orange**:那两个是有语义的
+   * (否定红 = 不要这样 / 转变橙 = 这里变了),染成同一色会把信息洗掉。
+   * 想让全片彻底单色,把那两个也传进来即可(未来可加选项)。
+   *
+   * 这是「盖一层」,不改各卡参数,清空即恢复。
+   */
+  accentColor?: string;
   cards: OverlayCard[];
 }
 
@@ -118,6 +129,10 @@ export function parseOverlay(raw: unknown): {
         cam: typeof o.cam === "string" && o.cam ? o.cam : undefined,
         font: typeof o.font === "string" && o.font ? o.font : undefined,
         inkColor: typeof o.inkColor === "string" && /^#[0-9a-fA-F]{3,8}$/.test(o.inkColor) ? o.inkColor : undefined,
+        accentColor:
+          typeof o.accentColor === "string" && /^#[0-9a-fA-F]{3,8}$/.test(o.accentColor)
+            ? o.accentColor
+            : undefined,
         cards,
       },
     };

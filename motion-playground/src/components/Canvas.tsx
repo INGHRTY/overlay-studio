@@ -1,4 +1,4 @@
-import { inkVars } from "../effects/hud/accent";
+import { accentVars, inkVars } from "../effects/hud/accent";
 import {
   useEffect,
   useLayoutEffect,
@@ -36,6 +36,8 @@ interface CanvasProps {
   font?: string;
   /** 全局文字色(doc.inkColor):盖住主题的 --hud-ink,次要文字同色降透明度 */
   inkColor?: string;
+  /** 全局品牌强调色(doc.accentColor):盖住主题自带的 --hud-blue,空 = 用主题默认 */
+  accentColor?: string;
   /** 时间轴模式下是否静音(单特效模式恒静音,自动播放要求) */
   videoMuted?: boolean;
   /** 视频画面缩放:源视频带黑边时放大充满画布 */
@@ -228,6 +230,7 @@ export function Canvas({
   glow,
   font,
   inkColor,
+  accentColor,
   videoMuted,
   videoScale,
   animSpeed,
@@ -310,6 +313,7 @@ export function Canvas({
           ["--hud-scale" as string]: fxScale,
           ...(font ? { ["--hud-font" as string]: `"${font}"` } : {}),
           ...inkVars(inkColor),
+          ...accentVars(accentColor),
         }}
       >
         {/* 全屏视频垫底:导入真实口播画面实时预览 */}

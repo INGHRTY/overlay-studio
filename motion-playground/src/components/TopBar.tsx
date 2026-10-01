@@ -99,6 +99,9 @@ interface TopBarProps {
   onToggleGlow: () => void;
   inkColor: string;
   onInkColor: (c: string) => void;
+  /** 全局品牌强调色(doc.accentColor):盖住主题默认的 --hud-blue */
+  accentColor: string;
+  onAccentColor: (c: string) => void;
   onUnifyAccent: (accent: string) => void;
   showGuides: boolean;
   onToggleGuides: () => void;
@@ -219,6 +222,8 @@ export function TopBar({
   onToggleGlow,
   inkColor,
   onInkColor,
+  accentColor,
+  onAccentColor,
   onUnifyAccent,
   showGuides,
   onToggleGuides,
@@ -366,6 +371,29 @@ export function TopBar({
                     恢复默认
                   </button>
                 </span>
+              </div>
+
+              <div className="tb-prefs-row">
+                <span>品牌强调色</span>
+                <span className="tb-prefs-ctl">
+                  <input
+                    type="color"
+                    /* 空值回落到主题的蓝:预览里显示的就是当前实际生效的那个色 */
+                    value={accentColor || "#5fa0fa"}
+                    onChange={(e) => onAccentColor(e.target.value)}
+                    disabled={!hasDoc}
+                  />
+                  <button
+                    className="tb-mini"
+                    onClick={() => onAccentColor("")}
+                    disabled={!hasDoc || !accentColor}
+                  >
+                    恢复默认
+                  </button>
+                </span>
+              </div>
+              <div className="tb-prefs-hint">
+                只改默认强调色;否定红 / 转变橙保留原样,不跟着染
               </div>
 
               <div className="tb-prefs-row">

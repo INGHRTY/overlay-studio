@@ -1149,6 +1149,11 @@ export default function App() {
           pushHistory(true);
           setOverlay((o) => (o ? { ...o, inkColor: c || undefined } : o));
         }}
+        accentColor={overlay?.accentColor ?? ""}
+        onAccentColor={(c) => {
+          pushHistory(true);
+          setOverlay((o) => (o ? { ...o, accentColor: c || undefined } : o));
+        }}
         onUnifyAccent={(accent) => {
           // 批量改写:把每张卡的 accent 参数直接改掉(不是盖一层),
           // 改完各卡参数面板显示的就是新值,之后还能单张调回去。force 压一步撤销。
@@ -1226,6 +1231,7 @@ export default function App() {
           glow={overlay?.glow ?? false}
           font={overlay?.font}
           inkColor={overlay?.inkColor}
+          accentColor={overlay?.accentColor}
           videoMuted={muted}
           videoScale={videoScale}
           animSpeed={animSpeed}

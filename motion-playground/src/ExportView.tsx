@@ -1,4 +1,4 @@
-import { inkVars } from "./effects/hud/accent";
+import { accentVars, inkVars } from "./effects/hud/accent";
 import { useEffect, useState } from "react";
 import "./fonts"; // 自定义字体注册:导出端也要有 @font-face,成片字体才和预览一致
 import { EFFECTS } from "./effects/registry";
@@ -170,6 +170,8 @@ function TimelineExport({
           ...stageStyle(size, scale),
           ...(doc.font ? { ["--hud-font" as string]: `"${doc.font}"` } : {}),
           ...inkVars(doc.inkColor),
+          /* 品牌强调色必须和预览端一致,否则导出的成片会退回默认蓝 */
+          ...accentVars(doc.accentColor),
         }}
       >
         {rendered}

@@ -92,3 +92,20 @@ export function inkVars(ink?: string): Record<string, string> {
     ["--hud-faint-doc"]: faint,
   };
 }
+
+/**
+ * 全局品牌强调色 → CSS 变量(对应 doc.accentColor)。
+ *
+ * **只盖 `--hud-blue`**:它是绝大多数卡 accent 的默认值(见 ACCENT_VAR,
+ * 连 pink/teal/violet 这些历史值现在也都落到它),所以改这一个值,
+ * 全片默认强调色就变成品牌色 —— 不用逐卡改,也不用碰任何卡片组件。
+ *
+ * `--hud-alert` / `--hud-orange` **不动**:那两个是语义色(否定红 / 转变橙),
+ * 一起染成品牌色会把「这里是否定、这里是转折」的信息洗掉。
+ */
+export function accentVars(color?: string): Record<string, string> {
+  if (!color) return {};
+  const c = color.trim();
+  if (!/^#([0-9a-fA-F]{3,8})$/.test(c)) return {};
+  return { ["--hud-blue"]: c };
+}
